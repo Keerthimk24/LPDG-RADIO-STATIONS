@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/
+models/
+.git/
+.github/
+notebooks/
+*.md
+*.txt
+*.csv
+*.xlsx
+.env
+.env.example
+.gitignore
+.dockerignore
