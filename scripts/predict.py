@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.config import Config
-from src.pipeline import run_prediction_pipeline
+from src.pipeline import run_prediction_pipeline, run_training_pipeline
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -42,6 +42,20 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
+
+    # Auto-train if no model exists yet (enables true single-command execution)
+    import pathlib
+    model_marker = pathlib.Path(args.model_dir) / "current_version.txt"
+    if not model_marker.exists():
+        print("No trained model found. Training automatically before predicting...")
+        try:
+            version_dir = run_training_pipeline(config)
+            print(f"Training complete -> {version_dir}")
+        except Exception as e:
+            print(f"ERROR: Auto-training failed: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            return 1
 
     try:
         predictions = run_prediction_pipeline(config)

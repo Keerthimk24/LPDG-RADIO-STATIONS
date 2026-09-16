@@ -1,0 +1,91 @@
+# =============================================================================
+# LPDG Gateway Health Predictor — Default Configuration
+#
+# All settings can be overridden via environment variables.
+# Environment variables take precedence over this YAML file.
+# =============================================================================
+
+# --- Paths ---
+paths:
+  data_dir: ./data
+  model_dir: ./models
+  predictions_out: ./predictions.csv
+
+# --- Logging ---
+logging:
+  level: INFO
+
+# --- Reproducibility ---
+random_seed: 42
+
+# --- Business Constraints ---
+cost:
+  visit_cost: 380       # EUR per engineer visit (false positive cost)
+  miss_cost: 600        # EUR per week per missed broken gateway (false negative cost)
+  visits_per_week: 15   # Maximum engineer visits schedulable per week
+
+# --- Model ---
+model:
+  type: lightgbm        # lightgbm | hist_gradient_boosting | random_forest | logistic_regression
+  version: current      # Which saved version to use for predictions
+
+  # LightGBM hyperparameters
+  lgbm:
+    objective: binary
+    metric: binary_logloss
+    boosting_type: gbdt
+    num_leaves: 31
+    learning_rate: 0.05
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 5
+    min_child_samples: 10
+
+  # Cross-validation
+  cv:
+    strategy: GroupKFold  # GroupKFold (gateway-level) or StratifiedKFold
+    n_folds: 3
+    early_stopping_rounds: 30
+
+# --- Feature Engineering ---
+features:
+  baseline_days: 28     # Lookback window for baseline statistics
+  recent_days: 7        # Lookback window for recent behavior
+  meter_lookback_weeks: 4
+
+# --- Drift Detection ---
+drift:
+  threshold: 0.05       # KS-test p-value threshold (below = drift detected)
+  volume_tolerance: 0.1 # Gateway count change tolerance (10%)
+
+# --- Scored Weeks ---
+# 8 Mondays from 2 Feb to 23 Mar 2026
+scored_weeks:
+  - "2026-02-02"
+  - "2026-02-09"
+  - "2026-02-16"
+  - "2026-02-23"
+  - "2026-03-02"
+  - "2026-03-09"
+  - "2026-03-16"
+  - "2026-03-23"
+
+# --- Training Weeks ---
+# 16 Mondays from Oct 2025 to Jan 2026 (7-day gap before scored window)
+training_weeks:
+  - "2025-10-06"
+  - "2025-10-13"
+  - "2025-10-20"
+  - "2025-10-27"
+  - "2025-11-03"
+  - "2025-11-10"
+  - "2025-11-17"
+  - "2025-11-24"
+  - "2025-12-01"
+  - "2025-12-08"
+  - "2025-12-15"
+  - "2025-12-22"
+  - "2026-01-05"
+  - "2026-01-12"
+  - "2026-01-19"
+  - "2026-01-26"

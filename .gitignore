@@ -15,12 +15,16 @@ env/
 # Data (never commit — 104 MB and not ours to share)
 /data/
 
+# Challenge materials (contains 70 MB data zip — not ours to share)
+Innovation Hub 2026/
+
 # Model artifacts (generated, not source)
 /models/
 
-# Output
-predictions.csv
+# Baseline output (not submitted)
 predictions_baseline.csv
+baseline_predictions.csv
+dashboard.html
 
 # OS
 .DS_Store

@@ -39,8 +39,9 @@ class Config:
     # Drift detection
     drift_threshold: float = field(default_factory=lambda: float(os.getenv("DRIFT_THRESHOLD", "0.05")))
 
-    # Model version
+    # Model version & architecture
     model_version: str = field(default_factory=lambda: os.getenv("MODEL_VERSION", "current"))
+    model_type: str = field(default_factory=lambda: os.getenv("MODEL_TYPE", "lightgbm"))
 
     # Scored weeks: 8 Mondays from 2 Feb to 23 Mar 2026
     scored_weeks: tuple = field(default=(

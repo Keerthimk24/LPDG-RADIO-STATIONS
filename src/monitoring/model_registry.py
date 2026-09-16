@@ -66,7 +66,13 @@ class ModelRegistry:
         """
         target_dir = self.model_dir / target_version
         if not target_dir.exists():
-            raise FileNotFoundError(f"Target version not found: {target_dir}")
+            # Check if semantic version (e.g. v1.0.0) maps to v1 or vice versa
+            prefix = target_version.split(".")[0]
+            if (self.model_dir / prefix).exists():
+                target_version = prefix
+                target_dir = self.model_dir / prefix
+            else:
+                raise FileNotFoundError(f"Target version not found: {target_dir}")
 
         model_path = target_dir / "model.joblib"
         if not model_path.exists():

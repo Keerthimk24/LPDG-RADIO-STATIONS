@@ -70,3 +70,22 @@ Five choices I made, and for each one, what else I could have done and why I did
 - **Database-backed registry:** PostgreSQL or SQLite for version management. More robust for a team, but unnecessary complexity for a single developer.
 
 **Why I chose this:** The brief tests whether you can change things with people watching. Separate pipelines mean I can retrain with new data in one terminal while the old model keeps serving predictions. The file-based registry is simple, has no external dependencies, and the rollback is tested (there is a test in `test_model_registry.py` that trains v1, trains v2, rolls back to v1, and verifies predictions match).
+
+---
+
+## What It Cannot Do
+
+1. **Cannot predict sudden catastrophic hardware failures** — The model identifies gradual degradation trends (rising disconnections, memory leakage, reboot clusters, declining read success). A physical surge, direct lightning strike, or power drop off is not detectable in advance from telemetry.
+2. **Cannot account for external environmental events** — Cellular carrier base station outages, extreme weather, or regional grid maintenance are absent from the training data.
+3. **Subject to label noise** — Labels combine engineer review (120 samples) and field visit notes (61% false positive baseline rate). Ground truth on the exact universe of failing gateways remains partially unobserved.
+4. **Calibrated for a fixed budget constraint** — Thresholds and rankings are tailored to the strict 15 visits/week operational capacity. Changing capacity to 30 or 5 shifts the optimal operating threshold.
+5. **Batch weekly inference, not streaming real-time alerts** — Evaluates state on Mondays for the upcoming week; does not generate real-time intraday push alerts.
+
+---
+
+## What Another Two Weeks Would Fix
+
+1. **Hyperparameter Optimisation with Optuna** — Automated Bayesian search across tree depth, learning rate, feature fractions, and regularization penalties instead of manual grid tuning.
+2. **Hybrid Ensemble with 3-Sigma Rules** — Blend LightGBM continuous risk probabilities with 3-sigma anomaly tripwires to catch acute spikes that trees occasionally smooth out.
+3. **Automated Live A/B Testing & Shadow Evaluation** — Continuous scoring in shadow mode against live field dispatches with automatic drift-triggered retraining gates.
+4. **Real-Time Streaming Anomaly Engine** — Event-driven Kafka / Faust pipeline computing running z-scores and alerting field engineers within 1 hour of silent gateway collapse.

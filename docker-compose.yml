@@ -8,24 +8,28 @@
 
 services:
   # -------------------------------------------------------------------------
-  # Default service: generate predictions
+  # Default service: generate predictions (aliases: gateway-health, gateway-predictor)
   # -------------------------------------------------------------------------
-  gateway-predictor:
+  gateway-predictor: &predictor-service
     build: .
     volumes:
       - ./data:/app/data:ro              # Mount data read-only
       - ./models:/app/models             # Model artifacts persist on host
+      - ./:/app/output                   # Predictions written here appear on host
     environment:
       - DATA_DIR=/app/data
       - MODEL_DIR=/app/models
-      - PREDICTIONS_OUT=/app/predictions.csv
+      - PREDICTIONS_OUT=/app/output/predictions.csv
       - LOG_LEVEL=INFO
       - RANDOM_SEED=42
       - VISIT_BUDGET=15
       - COST_FALSE_POSITIVE=380
       - COST_FALSE_NEGATIVE=600
       - MODEL_VERSION=current
-    command: ["scripts/predict.py", "--data", "/app/data", "--out", "/app/predictions.csv"]
+    command: ["scripts/predict.py", "--data", "/app/data", "--out", "/app/output/predictions.csv"]
+
+  gateway-health:
+    <<: *predictor-service
 
   # -------------------------------------------------------------------------
   # Train the model (only runs with --profile train)

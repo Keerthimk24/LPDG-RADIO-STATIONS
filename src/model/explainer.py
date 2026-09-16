@@ -18,26 +18,47 @@ import shap
 logger = logging.getLogger(__name__)
 
 
-def compute_global_importance(model: lgb.Booster, feature_names: list[str]) -> pd.DataFrame:
+def compute_global_importance(model: any, feature_names: list[str]) -> pd.DataFrame:
     """Compute global feature importance from the trained model.
 
+    Supports LightGBM, RandomForest, HistGradientBoosting, and LogisticRegression.
+
     Args:
-        model: Trained LightGBM model.
+        model: Trained model (LightGBM Booster or scikit-learn estimator/Pipeline).
         feature_names: List of feature column names.
 
     Returns:
         DataFrame with feature name and importance, sorted descending.
     """
-    importance = model.feature_importance(importance_type="gain")
+    if hasattr(model, "feature_importance"):
+        # LightGBM Booster
+        importance = np.asarray(model.feature_importance(importance_type="gain"), dtype=float)
+    elif hasattr(model, "feature_importances_"):
+        importance = np.asarray(model.feature_importances_, dtype=float)
+    elif hasattr(model, "named_steps"):
+        # Pipeline
+        last_step = list(model.named_steps.values())[-1]
+        if hasattr(last_step, "feature_importances_"):
+            importance = np.asarray(last_step.feature_importances_, dtype=float)
+        elif hasattr(last_step, "coef_"):
+            importance = np.abs(np.asarray(last_step.coef_, dtype=float).ravel())
+        else:
+            importance = np.ones(len(feature_names), dtype=float)
+    elif hasattr(model, "coef_"):
+        importance = np.abs(np.asarray(model.coef_, dtype=float).ravel())
+    else:
+        importance = np.ones(len(feature_names), dtype=float)
+
+    total = importance.sum()
+    pct = (importance / total * 100).round(2) if total > 0 else np.zeros_like(importance)
 
     result = pd.DataFrame({
         "feature": feature_names,
         "importance": importance,
+        "importance_pct": pct,
     }).sort_values("importance", ascending=False).reset_index(drop=True)
 
-    result["importance_pct"] = (result["importance"] / result["importance"].sum() * 100).round(2)
-
-    logger.info("Top 10 features by gain:\n%s", result.head(10).to_string(index=False))
+    logger.info("Top 10 features by importance:\n%s", result.head(10).to_string(index=False))
     return result
 
 

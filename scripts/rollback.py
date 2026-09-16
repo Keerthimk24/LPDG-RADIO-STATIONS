@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         success = registry.rollback(args.to, reason=args.reason)
         if success:
-            print(f"\nRollback successful: {current} → {args.to}")
+            print(f"\nRollback successful: {current} -> {args.to}")
             new_current = registry.get_current_version()
             print(f"Active version is now: {new_current}")
             return 0

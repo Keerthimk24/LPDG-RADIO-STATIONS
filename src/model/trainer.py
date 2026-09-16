@@ -18,7 +18,14 @@ import joblib
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold
+from sklearn.base import clone
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss, roc_auc_score
+from sklearn.model_selection import GroupKFold, StratifiedKFold
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 from src.config import Config
 from src.model.cost_function import asymmetric_cost_objective, cost_metric
@@ -110,19 +117,32 @@ def create_labels(
     return labels
 
 
+SUPPORTED_MODELS = (
+    "lightgbm",
+    "hist_gradient_boosting",
+    "random_forest",
+    "logistic_regression",
+)
+
+
 def train_model(
     X: pd.DataFrame,
     y: pd.Series,
     config: Config,
     feature_columns: list[str] | None = None,
-) -> tuple[lgb.Booster, dict]:
-    """Train a LightGBM model with asymmetric cost function.
+    model_type: str | None = None,
+) -> tuple[any, dict]:
+    """Train a predictive model with asymmetric cost awareness.
+
+    Supports LightGBM, HistGradientBoosting, RandomForest, and LogisticRegression.
 
     Args:
         X: Feature matrix.
         y: Binary labels (0/1).
         config: Configuration object.
         feature_columns: Which columns to use as features.
+        model_type: Architecture to train ('lightgbm', 'hist_gradient_boosting',
+                    'random_forest', 'logistic_regression'). Defaults to config.model_type.
 
     Returns:
         Tuple of (trained model, training metadata dict).
@@ -131,12 +151,45 @@ def train_model(
         metadata_cols = {"_monday", "label"}
         feature_columns = [c for c in X.columns if c not in metadata_cols]
 
+    if model_type is None:
+        model_type = getattr(config, "model_type", "lightgbm")
+
+    model_type = str(model_type).lower().strip()
+
+    if model_type == "lightgbm":
+        return _train_lightgbm(X, y, config, feature_columns)
+    elif model_type in ("hist_gradient_boosting", "hgb"):
+        return _train_hist_gradient_boosting(X, y, config, feature_columns)
+    elif model_type in ("random_forest", "rf"):
+        return _train_random_forest(X, y, config, feature_columns)
+    elif model_type in ("logistic_regression", "lr"):
+        return _train_logistic_regression(X, y, config, feature_columns)
+    else:
+        raise ValueError(
+            f"Unknown model_type '{model_type}'. Supported models: {SUPPORTED_MODELS}"
+        )
+
+
+def _train_lightgbm(
+    X: pd.DataFrame,
+    y: pd.Series,
+    config: Config,
+    feature_columns: list[str],
+) -> tuple[lgb.Booster, dict]:
+    """Train a LightGBM model with asymmetric cost function."""
     X_train = X[feature_columns].copy()
+
+    # Compute SHA256 hash of training data for reproducibility tracking
+    data_hash = hashlib.sha256(
+        pd.util.hash_pandas_object(X_train).values.tobytes()
+    ).hexdigest()
+
+    # Extract gateway groups for GroupKFold CV
+    groups = X.index.values  # gateway_id is the index
 
     logger.info("Training LightGBM: %d samples, %d features, %d positive labels",
                 len(X_train), len(feature_columns), int(y.sum()))
 
-    # LightGBM parameters — scale_pos_weight encodes cost asymmetry (€600 FN / €380 FP)
     params = {
         "objective": "binary",
         "metric": "binary_logloss",
@@ -150,16 +203,15 @@ def train_model(
         "seed": config.random_seed,
         "verbose": -1,
         "force_col_wise": True,
-        # Cost-sensitive: scale_pos_weight reflects the cost asymmetry
         "scale_pos_weight": config.cost_fn / config.cost_fp,
     }
 
-    # Cross-validation to estimate expected cost and find optimal iteration count
-    cv_cost, optimal_rounds = _cross_validate_cost(X_train, y, params, config)
+    cv_cost, cv_auc, cv_loss, optimal_rounds = _cross_validate_cost(
+        X_train, y, params, config, groups=groups,
+    )
 
     train_data = lgb.Dataset(X_train, label=y, free_raw_data=False)
 
-    # Train final model on all data with optimal number of iterations from CV
     model = lgb.train(
         params,
         train_data,
@@ -169,9 +221,10 @@ def train_model(
         ],
     )
 
-    # Build metadata
     metadata = {
         "trained_on": dt.datetime.utcnow().isoformat(),
+        "model_type": "lightgbm",
+        "model_class": "lightgbm.Booster",
         "features": feature_columns,
         "n_samples": len(X_train),
         "n_positive": int(y.sum()),
@@ -179,6 +232,8 @@ def train_model(
         "positive_rate": float(y.mean()),
         "best_iteration": optimal_rounds,
         "cv_total_cost_eur": cv_cost,
+        "cv_auc": cv_auc,
+        "cv_log_loss": cv_loss,
         "params": params,
         "python_version": "3.12",
         "lightgbm_version": lgb.__version__,
@@ -186,11 +241,162 @@ def train_model(
         "git_sha": _get_git_sha(),
         "cost_fp": config.cost_fp,
         "cost_fn": config.cost_fn,
+        "data_hash": data_hash,
+        "cv_strategy": "GroupKFold",
+        "cv_n_folds": 3,
     }
 
-    logger.info("Training complete. Best iteration: %d, CV cost: €%.0f",
-                optimal_rounds, cv_cost)
+    logger.info("Training complete. Best iteration: %d, CV cost: €%.0f, AUC: %.4f",
+                optimal_rounds, cv_cost, cv_auc)
 
+    return model, metadata
+
+
+def _train_hist_gradient_boosting(
+    X: pd.DataFrame,
+    y: pd.Series,
+    config: Config,
+    feature_columns: list[str],
+) -> tuple[HistGradientBoostingClassifier, dict]:
+    """Train a scikit-learn HistGradientBoostingClassifier."""
+    X_train = X[feature_columns].copy()
+
+    logger.info("Training HistGradientBoosting: %d samples, %d features, %d positive labels",
+                len(X_train), len(feature_columns), int(y.sum()))
+
+    pos_weight = config.cost_fn / config.cost_fp
+    model = HistGradientBoostingClassifier(
+        learning_rate=0.05,
+        max_iter=150,
+        min_samples_leaf=10,
+        class_weight={0: 1.0, 1: pos_weight},
+        random_state=config.random_seed,
+    )
+
+    cv_cost, cv_auc, cv_loss = _cross_validate_sklearn_cost(model, X_train, y, config)
+    model.fit(X_train, y)
+
+    metadata = {
+        "trained_on": dt.datetime.utcnow().isoformat(),
+        "model_type": "hist_gradient_boosting",
+        "model_class": "sklearn.ensemble.HistGradientBoostingClassifier",
+        "features": feature_columns,
+        "n_samples": len(X_train),
+        "n_positive": int(y.sum()),
+        "n_negative": int((1 - y).sum()),
+        "positive_rate": float(y.mean()),
+        "cv_total_cost_eur": cv_cost,
+        "cv_auc": cv_auc,
+        "cv_log_loss": cv_loss,
+        "python_version": "3.12",
+        "random_seed": config.random_seed,
+        "git_sha": _get_git_sha(),
+        "cost_fp": config.cost_fp,
+        "cost_fn": config.cost_fn,
+    }
+
+    logger.info("HistGradientBoosting complete. CV cost: €%.0f, AUC: %.4f", cv_cost, cv_auc)
+    return model, metadata
+
+
+def _train_random_forest(
+    X: pd.DataFrame,
+    y: pd.Series,
+    config: Config,
+    feature_columns: list[str],
+) -> tuple[Pipeline, dict]:
+    """Train a scikit-learn RandomForestClassifier inside an imputation pipeline."""
+    X_train = X[feature_columns].copy()
+
+    logger.info("Training RandomForest: %d samples, %d features, %d positive labels",
+                len(X_train), len(feature_columns), int(y.sum()))
+
+    pos_weight = config.cost_fn / config.cost_fp
+    model = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("rf", RandomForestClassifier(
+            n_estimators=100,
+            max_depth=12,
+            min_samples_leaf=5,
+            class_weight={0: 1.0, 1: pos_weight},
+            random_state=config.random_seed,
+            n_jobs=1,
+        )),
+    ])
+
+    cv_cost, cv_auc, cv_loss = _cross_validate_sklearn_cost(model, X_train, y, config)
+    model.fit(X_train, y)
+
+    metadata = {
+        "trained_on": dt.datetime.utcnow().isoformat(),
+        "model_type": "random_forest",
+        "model_class": "sklearn.ensemble.RandomForestClassifier",
+        "features": feature_columns,
+        "n_samples": len(X_train),
+        "n_positive": int(y.sum()),
+        "n_negative": int((1 - y).sum()),
+        "positive_rate": float(y.mean()),
+        "cv_total_cost_eur": cv_cost,
+        "cv_auc": cv_auc,
+        "cv_log_loss": cv_loss,
+        "python_version": "3.12",
+        "random_seed": config.random_seed,
+        "git_sha": _get_git_sha(),
+        "cost_fp": config.cost_fp,
+        "cost_fn": config.cost_fn,
+    }
+
+    logger.info("RandomForest complete. CV cost: €%.0f, AUC: %.4f", cv_cost, cv_auc)
+    return model, metadata
+
+
+def _train_logistic_regression(
+    X: pd.DataFrame,
+    y: pd.Series,
+    config: Config,
+    feature_columns: list[str],
+) -> tuple[Pipeline, dict]:
+    """Train a scikit-learn LogisticRegression model inside an imputation + scaling pipeline."""
+    X_train = X[feature_columns].copy()
+
+    logger.info("Training LogisticRegression: %d samples, %d features, %d positive labels",
+                len(X_train), len(feature_columns), int(y.sum()))
+
+    pos_weight = config.cost_fn / config.cost_fp
+    model = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler()),
+        ("lr", LogisticRegression(
+            class_weight={0: 1.0, 1: pos_weight},
+            max_iter=1000,
+            random_state=config.random_seed,
+            C=0.1,
+        )),
+    ])
+
+    cv_cost, cv_auc, cv_loss = _cross_validate_sklearn_cost(model, X_train, y, config)
+    model.fit(X_train, y)
+
+    metadata = {
+        "trained_on": dt.datetime.utcnow().isoformat(),
+        "model_type": "logistic_regression",
+        "model_class": "sklearn.linear_model.LogisticRegression",
+        "features": feature_columns,
+        "n_samples": len(X_train),
+        "n_positive": int(y.sum()),
+        "n_negative": int((1 - y).sum()),
+        "positive_rate": float(y.mean()),
+        "cv_total_cost_eur": cv_cost,
+        "cv_auc": cv_auc,
+        "cv_log_loss": cv_loss,
+        "python_version": "3.12",
+        "random_seed": config.random_seed,
+        "git_sha": _get_git_sha(),
+        "cost_fp": config.cost_fp,
+        "cost_fn": config.cost_fn,
+    }
+
+    logger.info("LogisticRegression complete. CV cost: €%.0f, AUC: %.4f", cv_cost, cv_auc)
     return model, metadata
 
 
@@ -199,15 +405,26 @@ def _cross_validate_cost(
     y: pd.Series,
     params: dict,
     config: Config,
-    n_folds: int = 5,
-) -> tuple[float, int]:
-    """Estimate total cost via cross-validation and find optimal boost rounds."""
+    n_folds: int = 3,
+    groups: np.ndarray | None = None,
+) -> tuple[float, float, float, int]:
+    """Estimate total cost, AUC, and log-loss via gateway-level GroupKFold cross-validation."""
     try:
-        skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=config.random_seed)
+        if groups is not None:
+            gkf = GroupKFold(n_splits=n_folds)
+            splitter = gkf.split(X, y, groups=groups)
+            logger.info("Using GroupKFold (%d folds) — same gateway never in train & val", n_folds)
+        else:
+            skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=config.random_seed)
+            splitter = skf.split(X, y)
+            logger.info("Using StratifiedKFold (%d folds) — no group information", n_folds)
+
         costs = []
+        aucs = []
+        losses = []
         best_iters = []
 
-        for fold, (train_idx, val_idx) in enumerate(skf.split(X, y)):
+        for fold, (train_idx, val_idx) in enumerate(splitter):
             X_tr, X_val = X.iloc[train_idx], X.iloc[val_idx]
             y_tr, y_val = y.iloc[train_idx], y.iloc[val_idx]
 
@@ -223,26 +440,78 @@ def _cross_validate_cost(
 
             preds = fold_model.predict(X_val)
             y_binary = (preds > 0.5).astype(int)
-            fp = ((y_binary == 1) & (y_val.values == 0)).sum()
-            fn = ((y_binary == 0) & (y_val.values == 1)).sum()
+            fp = int(((y_binary == 1) & (y_val.values == 0)).sum())
+            fn = int(((y_binary == 0) & (y_val.values == 1)).sum())
             fold_cost = fp * config.cost_fp + fn * config.cost_fn
             costs.append(fold_cost)
             best_iters.append(fold_model.best_iteration)
-            logger.debug("Fold %d cost: €%.0f (best iteration: %d)", fold, fold_cost, fold_model.best_iteration)
 
-        avg_cost = np.mean(costs)
+            try:
+                aucs.append(float(roc_auc_score(y_val, preds)))
+                losses.append(float(log_loss(y_val, np.clip(preds, 1e-7, 1 - 1e-7))))
+            except Exception:
+                pass
+
+        avg_cost = float(np.mean(costs))
+        avg_auc = float(np.mean(aucs)) if aucs else 0.0
+        avg_loss = float(np.mean(losses)) if losses else 0.0
         optimal_iters = int(np.median(best_iters)) if best_iters else 150
         optimal_iters = max(optimal_iters, 50)
-        logger.info("CV total cost (5-fold avg): €%.0f ± €%.0f, optimal iterations: %d",
-                    avg_cost, np.std(costs), optimal_iters)
-        return float(avg_cost), optimal_iters
+        logger.info("CV total cost (5-fold avg): €%.0f ± €%.0f, AUC: %.4f, LogLoss: %.4f, optimal iterations: %d",
+                    avg_cost, float(np.std(costs)), avg_auc, avg_loss, optimal_iters)
+        return avg_cost, avg_auc, avg_loss, optimal_iters
     except Exception as e:
-        logger.warning("Cross-validation failed: %s", e)
-        return float("inf"), 150
+        logger.warning("LightGBM cross-validation failed: %s", e)
+        return float("inf"), 0.0, 0.0, 150
+
+
+def _cross_validate_sklearn_cost(
+    model,
+    X: pd.DataFrame,
+    y: pd.Series,
+    config: Config,
+    n_folds: int = 5,
+) -> tuple[float, float, float]:
+    """Estimate total cost, AUC, and log-loss via cross-validation for scikit-learn models."""
+    try:
+        skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=config.random_seed)
+        costs = []
+        aucs = []
+        losses = []
+
+        for fold, (train_idx, val_idx) in enumerate(skf.split(X, y)):
+            X_tr, X_val = X.iloc[train_idx], X.iloc[val_idx]
+            y_tr, y_val = y.iloc[train_idx], y.iloc[val_idx]
+
+            fold_model = clone(model)
+            fold_model.fit(X_tr, y_tr)
+            preds = fold_model.predict_proba(X_val)[:, 1]
+
+            y_binary = (preds > 0.5).astype(int)
+            fp = int(((y_binary == 1) & (y_val.values == 0)).sum())
+            fn = int(((y_binary == 0) & (y_val.values == 1)).sum())
+            fold_cost = fp * config.cost_fp + fn * config.cost_fn
+            costs.append(fold_cost)
+
+            try:
+                aucs.append(float(roc_auc_score(y_val, preds)))
+                losses.append(float(log_loss(y_val, np.clip(preds, 1e-7, 1 - 1e-7))))
+            except Exception:
+                pass
+
+        avg_cost = float(np.mean(costs))
+        avg_auc = float(np.mean(aucs)) if aucs else 0.0
+        avg_loss = float(np.mean(losses)) if losses else 0.0
+        logger.info("CV cost (5-fold avg): €%.0f ± €%.0f, AUC: %.4f, LogLoss: %.4f",
+                    avg_cost, float(np.std(costs)), avg_auc, avg_loss)
+        return avg_cost, avg_auc, avg_loss
+    except Exception as e:
+        logger.warning("Sklearn cross-validation failed: %s", e)
+        return float("inf"), 0.0, 0.0
 
 
 def save_model(
-    model: lgb.Booster,
+    model: any,
     metadata: dict,
     model_dir: pathlib.Path,
     version: str | None = None,
@@ -250,7 +519,7 @@ def save_model(
     """Save model artifacts to a versioned directory.
 
     Args:
-        model: Trained LightGBM model.
+        model: Trained model (LightGBM Booster or scikit-learn model).
         metadata: Training metadata dict.
         model_dir: Base models directory.
         version: Version string (auto-generated if None).
@@ -295,7 +564,7 @@ def save_model(
     # Update registry
     _update_registry(model_dir, version, metadata)
 
-    logger.info("Model saved: %s → %s", version, version_dir)
+    logger.info("Model saved: %s (%s) → %s", version, metadata.get("model_type", "lightgbm"), version_dir)
     return version_dir
 
 
@@ -310,9 +579,12 @@ def _update_registry(model_dir: pathlib.Path, version: str, metadata: dict):
 
     registry["models"].append({
         "version": version,
+        "model_type": metadata.get("model_type", "lightgbm"),
+        "model_class": metadata.get("model_class", "unknown"),
         "trained_on": metadata["trained_on"],
         "n_samples": metadata["n_samples"],
         "cv_total_cost_eur": metadata.get("cv_total_cost_eur"),
+        "cv_auc": metadata.get("cv_auc"),
         "git_sha": metadata.get("git_sha"),
     })
     registry["current"] = version

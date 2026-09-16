@@ -56,14 +56,14 @@ def load_model(model_dir: pathlib.Path, version: str = "current") -> tuple[lgb.B
 
 
 def predict(
-    model: lgb.Booster,
+    model: any,
     features: pd.DataFrame,
     metadata: dict,
 ) -> pd.DataFrame:
-    """Generate predictions using a trained model.
+    """Generate predictions using a trained model (LightGBM or scikit-learn).
 
     Args:
-        model: Trained LightGBM model.
+        model: Trained model (LightGBM Booster or scikit-learn estimator/Pipeline).
         features: Feature matrix (must contain the columns the model expects).
         metadata: Model metadata (for feature column validation).
 
@@ -82,8 +82,17 @@ def predict(
 
     X = features[expected_features].copy()
 
-    # LightGBM binary objective returns calibrated probabilities directly
-    probabilities = model.predict(X)
+    # Generate probabilities based on model interface
+    if hasattr(model, "predict_proba"):
+        probs = model.predict_proba(X)
+        if hasattr(probs, "ndim") and probs.ndim == 2 and probs.shape[1] > 1:
+            probabilities = probs[:, 1]
+        else:
+            probabilities = np.asarray(probs).ravel()
+    elif hasattr(model, "predict"):
+        probabilities = np.asarray(model.predict(X)).ravel()
+    else:
+        raise TypeError(f"Model object of type {type(model)} has neither predict_proba nor predict method.")
 
     result = pd.DataFrame({
         "gateway_id": features.index,
@@ -94,6 +103,6 @@ def predict(
         result["_monday"] = features["_monday"].values
 
     logger.info("Predictions generated: %d gateways, prob range [%.3f, %.3f]",
-                len(result), probabilities.min(), probabilities.max())
+                len(result), float(probabilities.min()), float(probabilities.max()))
 
     return result
