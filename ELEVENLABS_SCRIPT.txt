@@ -1,0 +1,73 @@
+Hello everyone, my name is Keerthi Machanooru. <break time="1.0s" /> Welcome to this walkthrough of the LPDG Gateway Health Prediction Intelligence Dashboard. <break time="2.0s" />
+
+In our municipal utility network, approximately 320 Lora-wan gateways collect and relay data from thousands of smart water and gas meters. <break time="1.0s" /> When a gateway silently fails in the field, meter data stops flowing, costing the utility 600 euros per week in regulatory non-reading penalties. <break time="2.0s" />
+
+Our field engineering team faces a strict operational limit: we can only dispatch technicians to 15 gateways per week, and each visit costs 380 euros. <break time="2.0s" />
+
+In the past, operations relied on spreadsheets and basic three sigma statistical anomaly thresholds. <break time="1.0s" /> That resulted in a 61% false alarm rate, where technicians repeatedly drove out only to find completely healthy gateways. <break time="2.0s" />
+
+This dashboard presents our machine learning solution: a cost-weighted system that directly optimizes financial returns and tells field teams exactly which 15 gateways to visit each week. <break time="3.5s" />
+
+Looking at the top of our dashboard, the Fleet Health Scorecard gives management an instant executive summary of the entire network. <break time="2.0s" />
+
+First, our fleet reliability ratio stands at 302 Safe Gateways, or 91%, versus 30 Broken Gateways, or 9%. <break time="1.5s" /> The AI continuously filters out healthy noise so our field engineers focus exclusively on genuine risks. <break time="2.0s" />
+
+Next, across the 4-week February evaluation period, our system delivers 30 thousand, 380 euros in cumulative net savings compared to the statistical baseline. <break time="2.5s" />
+
+In terms of accuracy, our model achieves a 0.888 A-U-C, R-O-C. <break time="1.5s" /> Each week, we successfully catch 11 out of 60 bad gateways, sending only 4 false alarms. <break time="1.5s" /> That is compared to the baseline, which caught only 3 bad gateways and sent 12 false alarms. <break time="2.0s" /> That represents a 267% improvement in broken gateways caught, while reducing wasted technician travel costs by over 3 thousand euros every single week. <break time="2.5s" />
+
+Across the entire 8-week evaluation window, our system generates exactly 120 prioritized visit recommendations, perfectly adhering to the 15 visits per week constraint. <break time="4.0s" />
+
+Scrolling down to our visual analytics section, four intuitive charts translate complex telemetry patterns into actionable operational intelligence. <break time="3.0s" />
+
+Chart 1: Maintenance Accuracy: Gateways Caught versus Wasted Trips. <break time="1.5s" />
+Here we see our AI model side-by-side with the three sigma baseline. <break time="1.0s" /> While the baseline wastes 80% of its dispatches on false alarms, our cost-weighted model directs nearly three-quarters of all engineer visits directly to failing hardware. <break time="3.0s" />
+
+Chart 2: Weekly Operating Cost. <break time="1.5s" />
+This chart plots total weekly cost, combining 380 euro visit fees and 600 euro weekly penalties for missed gateways. <break time="1.5s" /> Our model consistently lowers network operating costs from 38 thousand, 760 euros per week down to 30 thousand, 920 euros per week, generating steady weekly savings of nearly 7 thousand, 800 euros every week. <break time="3.0s" />
+
+Chart 3: Why Gateways Break, showing the failure root causes breakdown. <break time="1.5s" />
+Rather than treating all failures as generic anomalies, our feature pipeline diagnoses the root cause. <break time="1.0s" /> As shown in this donut chart: <break time="1.0s" />
+42% of issues are caused by cellular backhaul disconnects. <break time="1.0s" />
+28% stem from smart meter packet dropouts. <break time="1.0s" />
+18% are due to repeat hardware defects. <break time="1.0s" />
+And 12% are chronic power reboot brownouts. <break time="3.0s" />
+
+Chart 4: Chronic Problem Gateways. <break time="1.5s" />
+This horizontal bar chart highlights the top 10 repeat offender gateways flagged across 7 to 8 weeks. <break time="1.5s" /> This tells operations that repeatedly rebooting these units is a waste of money; they need a permanent physical hardware swap. <break time="4.0s" />
+
+Next, we come to the core operational tool: the Complete 8-Week Visit Dispatch Schedule. <break time="2.5s" />
+
+This table lists the exact 15 gateways selected for each Monday week, ranked from most critical to least critical. <break time="2.0s" />
+
+Notice the interactive controls at the top. <break time="1.5s" /> The Week Filter dropdown allows dispatch managers to navigate between all 8 weeks, from February 2nd through March 23rd. <break time="2.0s" /> When we switch weeks, the table dynamically refreshes with the updated queue for that period. <break time="2.5s" />
+
+We also have a live Search bar. <break time="1.5s" /> If a dispatcher wants to find a specific gateway hex ID or filter by problem type, such as typing 'antenna' or 'reboot', the table filters instantaneously. <break time="3.0s" />
+
+For every gateway, the table provides three vital pieces of decision support: <break time="1.5s" />
+Number 1: Calibrated Risk Score out of 100. <break time="1.0s" /> Ranging from high-90s emergency failures down to elevated risks, giving dispatchers an immediate sense of urgency. <break time="2.0s" />
+Number 2: Recommended Field Action. <break time="1.0s" /> This is critical for field teams. Instead of arriving blind, the technician knows whether to bring a replacement antenna, swap the gateway unit, or inspect power lines. <break time="2.0s" />
+Number 3: Diagnosed Reason. <break time="1.0s" /> A concise explanation under 300 characters explaining the exact statistical drivers behind the recommendation. <break time="4.0s" />
+
+Scrolling further down, we reach a unique proactive feature: the Next Week Early Warning Watchlist, highlighting gateways ranked number 16 to number 23. <break time="2.5s" />
+
+Because our weekly budget is strictly capped at 15 visits, these gateways just missed the current week's dispatch cutoff, but our model has detected early degradation trends. <break time="2.5s" />
+
+This gives operations two huge advantages: <break time="2.0s" />
+
+First: Geographic Route Batching. <break time="1.5s" /> If Gateway 18 is located on the same street or cellular tower as Gateway 3, operations can instruct the technician to service both during the same trip, eliminating a separate truck roll next week. <break time="2.5s" />
+
+Second: Zero-Cost Remote Interventions. <break time="1.5s" /> Before sending a physical technician, network engineers can attempt over-the-air firmware updates or remote modem power cycles to resolve issues before physical hardware failure occurs. <break time="3.5s" />
+
+To wrap up: <break time="1.5s" />
+
+This dashboard transforms raw I-O-T telemetry into an automated, cost-optimized predictive maintenance workflow. <break time="2.0s" />
+
+By replacing guesswork with machine learning: <break time="1.0s" />
+We catch 67% more broken gateways. <break time="1.0s" />
+We eliminate wasted false alarm trips. <break time="1.0s" />
+And we deliver over 30 thousand euros in real financial savings to the utility. <break time="2.0s" />
+
+The entire dashboard is fully interactive, runs locally in a single command, and is ready for production deployment. <break time="2.0s" />
+
+Thank you very much for watching! <break time="2.0s" />
