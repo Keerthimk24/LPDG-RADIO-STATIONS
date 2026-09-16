@@ -26,6 +26,9 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY src/ ./src/
 COPY scripts/ ./scripts/
+COPY config/ ./config/
+COPY validate_submission.py ./
+COPY baseline_3sigma.py ./
 COPY pyproject.toml ./
 
 # Data and models are MOUNTED, never baked into the image
