@@ -32,8 +32,8 @@
 
 ### Step 1 — Set Up Data
 ```bash
-git clone https://github.com/JAYA-KRUSHNA/LPDG.git
-cd LPDG
+git clone https://github.com/Keerthimk24/LPDG-RADIO-STATIONS.git
+cd LPDG-RADIO-STATIONS
 
 # Extract challenge data into data/ folder
 unzip 03-challenge-data.zip -d data/
@@ -313,7 +313,7 @@ make test
 ## 🗂️ Project Structure
 
 ```text
-LPDG/
+LPDG-RADIO-STATIONS/
 ├── README.md                      # Comprehensive project guide & documentation
 ├── DECISIONS.md                   # 5 key architecture decisions with trade-offs
 ├── AI-USAGE.md                    # AI disclosure and cost function correction
@@ -416,3 +416,5 @@ See [DECISIONS.md](DECISIONS.md) for full rationale and alternatives considered.
 ## 📄 Notice & License
 
 This project was built for the **LPDG Innovation Hub Selection Challenge 2026**. All challenge telemetry and operational data remain the confidential property of the challenge organizers.
+
+**Author & Maintainer:** [keerthi machanooru](https://github.com/Keerthimk24) ([@Keerthimk24](https://github.com/Keerthimk24))
