@@ -1,0 +1,2 @@
+# Reference to standard requirements.txt
+-r requirements.txt
