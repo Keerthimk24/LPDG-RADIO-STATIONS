@@ -82,11 +82,8 @@ def predict(
 
     X = features[expected_features].copy()
 
-    # Generate raw predictions (LightGBM with custom objective returns raw scores)
-    raw_preds = model.predict(X)
-
-    # Sigmoid to convert to probabilities
-    probabilities = 1.0 / (1.0 + np.exp(-raw_preds))
+    # LightGBM binary objective returns calibrated probabilities directly
+    probabilities = model.predict(X)
 
     result = pd.DataFrame({
         "gateway_id": features.index,

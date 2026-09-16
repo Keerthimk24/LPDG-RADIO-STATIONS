@@ -28,11 +28,12 @@ def normalise_gateway_id(gw_id: str) -> str:
     return re.sub(r"[^0-9A-Fa-f]", "", text).upper()
 
 
-def load_telemetry(data_dir: pathlib.Path) -> pd.DataFrame:
+def load_telemetry(data_dir: str | pathlib.Path) -> pd.DataFrame:
     """Load the full telemetry dataset from partitioned parquet files.
 
     Returns a DataFrame with datetime index `ts` and normalised `gateway_id`.
     """
+    data_dir = pathlib.Path(data_dir)
     telemetry_dir = data_dir / "telemetry"
     if not telemetry_dir.exists():
         raise FileNotFoundError(f"Telemetry directory not found: {telemetry_dir}")
@@ -48,8 +49,9 @@ def load_telemetry(data_dir: pathlib.Path) -> pd.DataFrame:
     return frame
 
 
-def load_gateway_master(data_dir: pathlib.Path) -> pd.DataFrame:
+def load_gateway_master(data_dir: str | pathlib.Path) -> pd.DataFrame:
     """Load the gateway asset register."""
+    data_dir = pathlib.Path(data_dir)
     path = data_dir / "gateway_master.csv"
     logger.info("Loading gateway master from %s", path)
     frame = pd.read_csv(path, encoding="latin-1")
@@ -64,8 +66,9 @@ def load_gateway_master(data_dir: pathlib.Path) -> pd.DataFrame:
     return frame
 
 
-def load_field_visits(data_dir: pathlib.Path) -> pd.DataFrame:
+def load_field_visits(data_dir: str | pathlib.Path) -> pd.DataFrame:
     """Load historical field visit work orders."""
+    data_dir = pathlib.Path(data_dir)
     path = data_dir / "field_visits.csv"
     logger.info("Loading field visits from %s", path)
     frame = pd.read_csv(path)
@@ -79,8 +82,9 @@ def load_field_visits(data_dir: pathlib.Path) -> pd.DataFrame:
     return frame
 
 
-def load_meter_read_success(data_dir: pathlib.Path) -> pd.DataFrame:
+def load_meter_read_success(data_dir: str | pathlib.Path) -> pd.DataFrame:
     """Load meter read success rates (weekly, per gateway)."""
+    data_dir = pathlib.Path(data_dir)
     path = data_dir / "meter_read_success.csv"
     logger.info("Loading meter read success from %s", path)
     frame = pd.read_csv(path)
@@ -95,8 +99,9 @@ def load_meter_read_success(data_dir: pathlib.Path) -> pd.DataFrame:
     return frame
 
 
-def load_engineer_review(data_dir: pathlib.Path) -> pd.DataFrame:
+def load_engineer_review(data_dir: str | pathlib.Path) -> pd.DataFrame:
     """Load engineer review labels (ground truth for supervised learning)."""
+    data_dir = pathlib.Path(data_dir)
     path = data_dir / "engineer_review_2026-02.xlsx"
     logger.info("Loading engineer review from %s", path)
     frame = pd.read_excel(path)
@@ -110,8 +115,9 @@ def load_engineer_review(data_dir: pathlib.Path) -> pd.DataFrame:
     return frame
 
 
-def load_all(data_dir: pathlib.Path) -> dict[str, pd.DataFrame]:
+def load_all(data_dir: str | pathlib.Path) -> dict[str, pd.DataFrame]:
     """Load all datasets and return as a dictionary."""
+    data_dir = pathlib.Path(data_dir)
     return {
         "telemetry": load_telemetry(data_dir),
         "gateway_master": load_gateway_master(data_dir),

@@ -154,23 +154,20 @@ def train_model(
         "scale_pos_weight": config.cost_fn / config.cost_fp,
     }
 
+    # Cross-validation to estimate expected cost and find optimal iteration count
+    cv_cost, optimal_rounds = _cross_validate_cost(X_train, y, params, config)
+
     train_data = lgb.Dataset(X_train, label=y, free_raw_data=False)
 
-    # Train with cost-sensitive binary objective
+    # Train final model on all data with optimal number of iterations from CV
     model = lgb.train(
         params,
         train_data,
-        num_boost_round=500,
-        valid_sets=[train_data],
-        valid_names=["train"],
+        num_boost_round=optimal_rounds,
         callbacks=[
-            lgb.log_evaluation(period=100),
-            lgb.early_stopping(stopping_rounds=50, verbose=True),
+            lgb.log_evaluation(period=50),
         ],
     )
-
-    # Cross-validation cost estimate
-    cv_cost = _cross_validate_cost(X_train, y, params, config)
 
     # Build metadata
     metadata = {
@@ -180,7 +177,7 @@ def train_model(
         "n_positive": int(y.sum()),
         "n_negative": int((1 - y).sum()),
         "positive_rate": float(y.mean()),
-        "best_iteration": model.best_iteration,
+        "best_iteration": optimal_rounds,
         "cv_total_cost_eur": cv_cost,
         "params": params,
         "python_version": "3.12",
@@ -192,7 +189,7 @@ def train_model(
     }
 
     logger.info("Training complete. Best iteration: %d, CV cost: €%.0f",
-                model.best_iteration, cv_cost)
+                optimal_rounds, cv_cost)
 
     return model, metadata
 
@@ -203,11 +200,12 @@ def _cross_validate_cost(
     params: dict,
     config: Config,
     n_folds: int = 5,
-) -> float:
-    """Estimate total cost via cross-validation."""
+) -> tuple[float, int]:
+    """Estimate total cost via cross-validation and find optimal boost rounds."""
     try:
         skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=config.random_seed)
         costs = []
+        best_iters = []
 
         for fold, (train_idx, val_idx) in enumerate(skf.split(X, y)):
             X_tr, X_val = X.iloc[train_idx], X.iloc[val_idx]
@@ -216,27 +214,31 @@ def _cross_validate_cost(
             dtrain = lgb.Dataset(X_tr, label=y_tr)
             dval = lgb.Dataset(X_val, label=y_val, reference=dtrain)
 
-            model = lgb.train(
+            fold_model = lgb.train(
                 params, dtrain,
-                num_boost_round=300,
+                num_boost_round=500,
                 valid_sets=[dval],
                 callbacks=[lgb.early_stopping(30, verbose=False), lgb.log_evaluation(0)],
             )
 
-            preds = model.predict(X_val)
+            preds = fold_model.predict(X_val)
             y_binary = (preds > 0.5).astype(int)
             fp = ((y_binary == 1) & (y_val.values == 0)).sum()
             fn = ((y_binary == 0) & (y_val.values == 1)).sum()
             fold_cost = fp * config.cost_fp + fn * config.cost_fn
             costs.append(fold_cost)
-            logger.debug("Fold %d cost: €%.0f", fold, fold_cost)
+            best_iters.append(fold_model.best_iteration)
+            logger.debug("Fold %d cost: €%.0f (best iteration: %d)", fold, fold_cost, fold_model.best_iteration)
 
         avg_cost = np.mean(costs)
-        logger.info("CV total cost (5-fold avg): €%.0f ± €%.0f", avg_cost, np.std(costs))
-        return float(avg_cost)
+        optimal_iters = int(np.median(best_iters)) if best_iters else 150
+        optimal_iters = max(optimal_iters, 50)
+        logger.info("CV total cost (5-fold avg): €%.0f ± €%.0f, optimal iterations: %d",
+                    avg_cost, np.std(costs), optimal_iters)
+        return float(avg_cost), optimal_iters
     except Exception as e:
         logger.warning("Cross-validation failed: %s", e)
-        return float("inf")
+        return float("inf"), 150
 
 
 def save_model(
