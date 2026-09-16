@@ -1,0 +1,59 @@
+# =============================================================================
+# LPDG Gateway Health Predictor — Docker Compose
+#
+# Default:    docker compose up           → runs prediction pipeline
+# Train:      docker compose --profile train up
+# Test:       docker compose --profile test up
+# =============================================================================
+
+services:
+  # -------------------------------------------------------------------------
+  # Default service: generate predictions
+  # -------------------------------------------------------------------------
+  gateway-predictor:
+    build: .
+    volumes:
+      - ./data:/app/data:ro              # Mount data read-only
+      - ./models:/app/models             # Model artifacts persist on host
+    environment:
+      - DATA_DIR=/app/data
+      - MODEL_DIR=/app/models
+      - PREDICTIONS_OUT=/app/predictions.csv
+      - LOG_LEVEL=INFO
+      - RANDOM_SEED=42
+      - VISIT_BUDGET=15
+      - COST_FALSE_POSITIVE=380
+      - COST_FALSE_NEGATIVE=600
+      - MODEL_VERSION=current
+    command: ["scripts/predict.py", "--data", "/app/data", "--out", "/app/predictions.csv"]
+
+  # -------------------------------------------------------------------------
+  # Train the model (only runs with --profile train)
+  # -------------------------------------------------------------------------
+  train:
+    build: .
+    profiles: ["train"]
+    volumes:
+      - ./data:/app/data:ro
+      - ./models:/app/models
+    environment:
+      - DATA_DIR=/app/data
+      - MODEL_DIR=/app/models
+      - LOG_LEVEL=INFO
+      - RANDOM_SEED=42
+    command: ["scripts/train.py", "--data", "/app/data", "--model-dir", "/app/models"]
+
+  # -------------------------------------------------------------------------
+  # Run tests (only runs with --profile test)
+  # -------------------------------------------------------------------------
+  test:
+    build: .
+    profiles: ["test"]
+    volumes:
+      - ./data:/app/data:ro
+      - ./models:/app/models
+      - ./tests:/app/tests:ro
+    environment:
+      - DATA_DIR=/app/data
+      - MODEL_DIR=/app/models
+    command: ["-m", "pytest", "tests/", "-v", "--tb=short"]
