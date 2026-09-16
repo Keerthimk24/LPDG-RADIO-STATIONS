@@ -14,7 +14,7 @@
 | Item | Link / Location | Description |
 | :--- | :--- | :--- |
 | 🎥 **Video Walkthrough (6–8 min)** | **[Watch on Google Drive](https://drive.google.com/your-video-link-here)** | Full screen recording covering: pipeline run, ML cost optimization, live dashboard, and rollback |
-| 📄 **Candidate Resume** | **[View Resume (PDF)](resume.pdf)** | Profile of **keerthi machanooru** ([@Keerthimk24](https://github.com/Keerthimk24)) |
+| 📄 **Candidate Resume** | **[View Resume (Google Drive)](https://drive.google.com/file/d/11MYgRBhSYLxMZ4YHjH1ly-fhyuKq429w/view?usp=drive_link)** | Profile of **keerthi machanooru** ([@Keerthimk24](https://github.com/Keerthimk24)) |
 | 📝 **Video Presentation Script** | **[View Presentation Script](PRESENTATION_SCRIPT.md)** | Minute-by-minute speaking guide for the 6–8 min evaluation video |
 
 ---
