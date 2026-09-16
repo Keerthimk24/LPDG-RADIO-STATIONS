@@ -1,2 +1,30 @@
-# Reference to standard requirements.txt
--r requirements.txt
+# LPDG Gateway Health Predictor
+# Exact verified dependencies for 100% reproducibility (Python 3.12+)
+
+# Core Data Processing
+pandas==2.3.3
+numpy==2.4.4
+pyarrow==24.0.0
+
+# Machine Learning & Explainability
+lightgbm==4.7.0
+scikit-learn==1.8.0
+shap==0.52.0
+joblib==1.3.2
+
+# Data Quality & Drift Monitoring
+scipy==1.17.1
+
+# Reporting & Visualization
+plotly==6.9.0
+
+# Spreadsheet Support
+openpyxl==3.1.5
+
+# Configuration & Environment
+PyYAML==6.0.3
+python-dotenv==1.2.2
+
+# Testing & Quality Assurance
+pytest==9.0.2
+pytest-cov==7.1.0
