@@ -69,33 +69,43 @@ make all
 3. `→ Validating predictions...` ✓ `predictions.csv: OK`
 4. `✓ Pipeline complete.` `predictions.csv` is ready for grading.
 
-### Step 3 — Run, View Results & Open Dashboard
+### Step 3 — The 2 Universal Commands (Works on EVERY Computer)
 
-#### 1. View & Validate Prediction Results:
+You only need **2 simple Python commands** to inspect everything:
+
+#### 1️⃣ Command 1 — View Results, Accuracy, AUC-ROC & Cost Savings:
 ```bash
-# Generate and validate predictions (8 weeks × 15 visits = 120 rows)
+python scripts/evaluate.py
+```
+> **What it does:** Displays the complete executive evaluation report in your terminal:
+> • **AUC-ROC: 0.888** | Recall@15: **67.0%** | Precision@15: **68.3%**
+> • **Cost Comparison:** Saves **€30,380** over baseline in February (+67% more broken gateways caught)
+> • **Week-by-week ground truth validation** against the 60 "Schlecht" reviewed gateways.
+
+#### 2️⃣ Command 2 — Launch & View the Interactive Dashboard:
+```bash
+python scripts/dashboard.py
+```
+> **What it does:** Automatically builds the latest executive report (`dashboard.html`) and opens it directly in your web browser:
+> • **Fleet Health Cards:** 302 Safe vs 30 Broken gateways
+> • **4 Intuitive Charts:** Weekly Cost, Risk Tiers, Root Causes, Cumulative Savings
+> • **Interactive Schedule:** Filterable weekly table with genuine risk out of 100, diagnosed fault reason, and recommended engineer action.
+
+---
+
+### Alternative / Advanced Commands:
+```bash
+# Generate predictions directly:
 python scripts/predict.py --data data --out predictions.csv
+
+# Validate predictions file format:
 python validate_submission.py predictions.csv
 
-# View detailed cost savings vs statistical baseline
-python scripts/evaluate.py --predictions predictions.csv --data data
-```
+# Run multi-model benchmark (LightGBM vs RandomForest vs others):
+python scripts/compare_models.py
 
-#### 2. Open & View the Interactive Dashboard:
-```bash
-# Option A: One-command generate & open in your browser
-make dashboard
-# OR without make:
-python -c "from src.dashboard.report import main; main()"
-
-# Option B: Open the pre-generated dashboard directly
-start dashboard.html        # On Windows (PowerShell/CMD)
-open dashboard.html         # On macOS
-xdg-open dashboard.html     # On Linux
-
-# Option C: View via local web server
-python -m http.server 8765
-# Open in browser: http://localhost:8765/dashboard.html
+# Run all 55 tests:
+pytest tests -q
 ```
 
 ---
