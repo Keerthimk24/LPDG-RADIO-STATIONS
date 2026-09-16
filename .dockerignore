@@ -9,6 +9,8 @@ models/
 notebooks/
 *.md
 *.txt
+!requirements.txt
+!requirement.txt
 *.csv
 *.xlsx
 .env
