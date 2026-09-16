@@ -9,6 +9,16 @@
 
 ---
 
+## 📹 6–8 Minute Video Walkthrough & Resume
+
+| Item | Link / Location | Description |
+| :--- | :--- | :--- |
+| 🎥 **Video Walkthrough (6–8 min)** | **[Watch on Google Drive](https://drive.google.com/your-video-link-here)** | Full screen recording covering: pipeline run, ML cost optimization, live dashboard, and rollback |
+| 📄 **Candidate Resume** | **[View Resume (PDF)](resume.pdf)** | Profile of **keerthi machanooru** ([@Keerthimk24](https://github.com/Keerthimk24)) |
+| 📝 **Video Presentation Script** | **[View Presentation Script](PRESENTATION_SCRIPT.md)** | Minute-by-minute speaking guide for the 6–8 min evaluation video |
+
+---
+
 ## 📊 Results at a Glance
 
 | Metric | 3σ Baseline | Our Model | Delta |
@@ -60,6 +70,12 @@ docker compose up
 #### Option B — Local Python:
 ```bash
 pip install -r requirements.txt
+
+# On Windows (PowerShell / Command Prompt):
+python scripts/predict.py --data data --out predictions.csv
+python validate_submission.py predictions.csv
+
+# On macOS / Linux (Terminal with make):
 make all
 ```
 
@@ -181,20 +197,43 @@ RAW DATA
 
 ---
 
-## 📋 All Available Commands
+## 📋 All Available Commands (Windows & macOS / Linux)
 
-| Command | What It Does | Execution Time |
-| :--- | :--- | :---: |
-| `make all` | Train → Predict → Validate (default) | ~15s |
-| `make train` | Train the LightGBM model | ~10s |
-| `make predict` | Generate predictions.csv + validate | ~5s |
-| `make validate` | Check predictions.csv against official grader | <1s |
-| `make evaluate` | Cost comparison vs 3σ baseline & ground truth | ~10s |
-| `make dashboard` | Generate interactive HTML dashboard with charts | ~2s |
-| `make test` | Run all 55 unit & integration tests | ~25s |
-| `make drift` | Run data drift detection report | ~5s |
-| `make rollback VERSION=v1` | Rollback model to a previous version | <1s |
-| `make clean` | Remove generated predictions and temporary files | <1s |
+Because Windows does not include `make` by default, use the dedicated table below for your operating system:
+
+### 🪟 Windows (PowerShell / Command Prompt)
+> **No `make` needed — all commands run via standard Python:**
+
+| Task | Windows Command (PowerShell / CMD) | What It Does | Execution Time |
+| :--- | :--- | :--- | :---: |
+| **1. View Results & Cost** | `python scripts/evaluate.py` | Prints **0.888 AUC-ROC**, Accuracy, & **€30,380 Savings** vs 3σ Baseline | ~2s |
+| **2. Open Dashboard** | `python scripts/dashboard.py` | Builds & automatically opens interactive dashboard in your browser | ~2s |
+| **3. Full Pipeline** | `python scripts/predict.py --data data --out predictions.csv` | Auto-trains model (if needed) & generates 120-row `predictions.csv` | ~15s |
+| **4. Validate Submission** | `python validate_submission.py predictions.csv` | Verifies `predictions.csv` against official grader rules (`OK`) | <1s |
+| **5. Train Model Only** | `python scripts/train.py --data data --model-dir models` | Trains LightGBM model with cost-sensitive loss | ~10s |
+| **6. Run All 55 Tests** | `pytest tests -q` | Runs complete unit & integration test suite (55 passed) | ~25s |
+| **7. Multi-Model Benchmark**| `python scripts/compare_models.py` | Compares LightGBM, HistGradientBoosting, RandomForest & Logistic | ~15s |
+| **8. Check Data Drift** | `python scripts/drift_check.py --data data --model-dir models` | Calculates Wasserstein distance & PSI drift metrics | ~5s |
+| **9. Rollback Model** | `python scripts/rollback.py --to v1 --model-dir models` | Atomic rollback to previous model version | <1s |
+| **10. Quick File Open** | `start dashboard.html` | Opens pre-built dashboard directly in Windows default browser | Instant |
+
+---
+
+### 🍎 🐧 macOS & Linux (Terminal / Make)
+> **Run either via standard Python 3 or using the included Makefile shortcuts:**
+
+| Task | macOS / Linux Command | Make Shortcut | Execution Time |
+| :--- | :--- | :--- | :---: |
+| **1. View Results & Cost** | `python3 scripts/evaluate.py` | `make evaluate` | ~2s |
+| **2. Open Dashboard** | `python3 scripts/dashboard.py` | `make dashboard` | ~2s |
+| **3. Full Pipeline** | `python3 scripts/predict.py --data data --out predictions.csv` | `make all` | ~15s |
+| **4. Validate Submission** | `python3 validate_submission.py predictions.csv` | `make validate` | <1s |
+| **5. Train Model Only** | `python3 scripts/train.py --data data --model-dir models` | `make train` | ~10s |
+| **6. Run All 55 Tests** | `pytest tests/ -v` | `make test` | ~25s |
+| **7. Multi-Model Benchmark**| `python3 scripts/compare_models.py` | — | ~15s |
+| **8. Check Data Drift** | `python3 scripts/drift_check.py --data data --model-dir models` | `make drift` | ~5s |
+| **9. Rollback Model** | `python3 scripts/rollback.py --to v1 --model-dir models` | `make rollback VERSION=v1` | <1s |
+| **10. Clean Temp Files** | `rm -f predictions.csv baseline_predictions.csv` | `make clean` | <1s |
 
 #### Docker Execution:
 ```bash
