@@ -13,10 +13,10 @@ env/
 .idea/
 
 # Data (never commit — 104 MB and not ours to share)
-data/
+/data/
 
 # Model artifacts (generated, not source)
-models/
+/models/
 
 # Output
 predictions.csv
