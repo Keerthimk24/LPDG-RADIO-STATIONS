@@ -69,10 +69,33 @@ make all
 3. `→ Validating predictions...` ✓ `predictions.csv: OK`
 4. `✓ Pipeline complete.` `predictions.csv` is ready for grading.
 
-### Step 3 — Explore Results
+### Step 3 — Run, View Results & Open Dashboard
+
+#### 1. View & Validate Prediction Results:
 ```bash
-make dashboard     # Opens interactive HTML executive dashboard in browser
-make evaluate      # Prints detailed cost comparison: Model vs Baseline
+# Generate and validate predictions (8 weeks × 15 visits = 120 rows)
+python scripts/predict.py --data data --out predictions.csv
+python validate_submission.py predictions.csv
+
+# View detailed cost savings vs statistical baseline
+python scripts/evaluate.py --predictions predictions.csv --data data
+```
+
+#### 2. Open & View the Interactive Dashboard:
+```bash
+# Option A: One-command generate & open in your browser
+make dashboard
+# OR without make:
+python -c "from src.dashboard.report import main; main()"
+
+# Option B: Open the pre-generated dashboard directly
+start dashboard.html        # On Windows (PowerShell/CMD)
+open dashboard.html         # On macOS
+xdg-open dashboard.html     # On Linux
+
+# Option C: View via local web server
+python -m http.server 8765
+# Open in browser: http://localhost:8765/dashboard.html
 ```
 
 ---
@@ -179,16 +202,53 @@ docker compose --profile train up
 
 ## 📊 Interactive Dashboard
 
-Run `make dashboard` to generate a self-contained, interactive executive HTML report (`dashboard.html`):
+The system includes a self-contained executive HTML report (`dashboard.html`) designed for operations managers and engineering leads.
 
-| Section | What It Displays |
+### How to Launch & View the Dashboard:
+```bash
+# Method 1: Generate & open automatically
+make dashboard
+# (or: python -c "from src.dashboard.report import main; main()")
+
+# Method 2: Open directly in your browser
+start dashboard.html        # Windows
+open dashboard.html         # macOS
+
+# Method 3: Run local HTTP server
+python -m http.server 8765
+# Navigate to: http://localhost:8765/dashboard.html
+```
+
+### Dashboard Key Features & Interactive Views:
+
+| Section | What It Displays & How to Use It |
 | :--- | :--- |
-| **Fleet Health KPI Cards** | High-level fleet status: **302 Safe vs 30 Broken** gateways, €30,380 savings, 0.888 AUC-ROC. |
-| **Weekly Cost Comparison** | Side-by-side cost breakdown: Baseline (€38,760/wk) vs Model (€30,920/wk). |
-| **Risk Score Distribution** | Genuine risk scores normalized out of 100 with actionable risk bands. |
-| **Failure Root Causes** | Categorization of faults: Disconnections, Reboot Loops, Signal Attenuation, Meter Failures. |
-| **Weekly Visit Schedule** | Filterable table of all 15 visits/week with genuine risk score, root cause, and recommended field action. |
-| **Next Week Early Warning Watchlist** | Proactive monitoring of gateways ranked **#16 to #23** trending toward failure for low-cost batch dispatch. |
+| **Fleet Health KPI Cards** | High-level fleet overview: **302 Safe vs 30 Broken** gateways, **€30,380** net savings, **0.888 AUC-ROC**, and **120** generated visit dispatches. |
+| **1. Weekly Cost Comparison (Bar Chart)** | Side-by-side cost breakdown comparing the 3σ Baseline (€38,760/wk) against our Cost-Weighted Model (€30,920/wk) across all February evaluation weeks. |
+| **2. Risk Score Distribution (Donut Chart)** | Categorizes all evaluated gateways into clear risk tiers: Critical Failure (90–100%), High Risk (70–89%), Moderate Risk (50–69%), and Stable Fleet (<50%). |
+| **3. Failure Root Causes (Horizontal Bar Chart)** | Clear breakdown of detected faults across the fleet: Unstable Backhaul Drops (42%), Chronic Reboot Loops (25%), Radio Signal Degradation (18%), and Zero Meter Reads (15%). |
+| **4. Cumulative Net Financial Savings (Trend Chart)** | Displays the accumulating operational savings over time, reaching **€30,380** saved across the 4-week window. |
+| **Weekly Visit Schedule Table** | Filterable by week: displays the **Top 15 ranked gateways** with genuine risk score out of 100, specific root causes, and clear field actions (e.g. *Dispatch Technician for Antenna Replacement*). |
+| **Next Week Early Warning Watchlist** | Highlights gateways ranked **#16 to #23** showing early degradation signs, allowing operations to pre-plan low-cost batch routes before complete failure. |
+
+---
+
+## 📈 How to Inspect Predictions & Model Benchmarks
+
+### 1. View Predictions File:
+The generated predictions are saved in standard CSV format:
+```bash
+# View top rows of predictions.csv
+head -n 16 predictions.csv
+```
+Contains 5 columns: `week_start, rank, gateway_id, score, reason`.
+
+### 2. Run Multi-Model Benchmark:
+To see how our LightGBM model compares against other ML architectures:
+```bash
+python scripts/compare_models.py
+```
+Outputs cross-validated AUC-ROC, AUC-PR, Brier loss, and estimated costs across **LightGBM**, **HistGradientBoosting**, **RandomForest**, and **LogisticRegression**.
 
 ---
 
